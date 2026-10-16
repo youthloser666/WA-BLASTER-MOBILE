@@ -75,7 +75,15 @@ class WaAccessibilityService : AccessibilityService() {
                         currentPackage.startsWith("com.whatsapp")
 
                 if (isWaPackage) {
-                    // 1. Deteksi dialog nomor tidak valid / tidak terdaftar
+                    // 1. Deteksi dialog akun WA terblokir / BANNED
+                    val bannedDialogResult = checkForBannedAccountDialog(root)
+                    if (bannedDialogResult != null) {
+                        dismissCurrentDialog(root)
+                        navigateBackToApp(targetPackage)
+                        return bannedDialogResult
+                    }
+
+                    // 2. Deteksi dialog nomor tidak valid / tidak terdaftar
                     val invalidDialogResult = checkForInvalidNumberDialog(root)
                     if (invalidDialogResult != null) {
                         dismissCurrentDialog(root)
@@ -159,6 +167,24 @@ class WaAccessibilityService : AccessibilityService() {
         for (node in allNodes) {
             if (node.className == "android.widget.EditText") {
                 return node
+            }
+        }
+        return null
+    }
+
+    private fun checkForBannedAccountDialog(root: AccessibilityNodeInfo): SendResult? {
+        val allNodes = mutableListOf<AccessibilityNodeInfo>()
+        collectAllNodes(root, allNodes)
+
+        for (node in allNodes) {
+            val text = (node.text ?: node.contentDescription)?.toString() ?: ""
+            if (text.isNotBlank()) {
+                val isBanned = WaSelectors.BANNED_ACCOUNT_TEXTS.any { bannedText ->
+                    text.contains(bannedText, ignoreCase = true)
+                }
+                if (isBanned) {
+                    return SendResult.Failed(FailReason.WA_BANNED, text)
+                }
             }
         }
         return null

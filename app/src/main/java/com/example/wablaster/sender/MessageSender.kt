@@ -15,5 +15,7 @@ enum class FailReason {
     SEND_BUTTON_NOT_FOUND,
     TIMEOUT,
     SERVICE_NOT_ENABLED,
+    WA_BANNED,
     UNKNOWN
 }
+

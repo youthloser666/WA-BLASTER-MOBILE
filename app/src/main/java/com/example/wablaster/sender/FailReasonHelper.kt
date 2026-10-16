@@ -6,6 +6,7 @@ fun FailReason.toUserFriendlyDescription(): String = when (this) {
     FailReason.SEND_BUTTON_NOT_FOUND -> "Tombol kirim tidak ditemukan. Kemungkinan tampilan WhatsApp berubah atau chat tidak terbuka."
     FailReason.TIMEOUT -> "Batas waktu pengiriman habis (WhatsApp lambat merespons)."
     FailReason.SERVICE_NOT_ENABLED -> "Layanan Aksesibilitas WA Blaster belum diaktifkan."
+    FailReason.WA_BANNED -> "Akun WhatsApp terdeteksi DIBLOKIR / BANNED oleh WhatsApp."
     FailReason.UNKNOWN -> "Terjadi kesalahan saat meluncurkan WhatsApp."
 }
 

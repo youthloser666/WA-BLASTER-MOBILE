@@ -78,6 +78,14 @@ class CampaignCircuitBreakerTest {
     }
 
     @Test
+    fun `wa banned failure trips circuit breaker immediately`() {
+        val tripped = circuitBreaker.recordResult(
+            SendResult.Failed(FailReason.WA_BANNED, "Akun ini tidak diizinkan menggunakan WhatsApp")
+        )
+        assertTrue(tripped)
+    }
+
+    @Test
     fun `manual reset clears failure counter`() {
         circuitBreaker.recordResult(SendResult.Failed(FailReason.SEND_BUTTON_NOT_FOUND))
         circuitBreaker.recordResult(SendResult.Failed(FailReason.SEND_BUTTON_NOT_FOUND))

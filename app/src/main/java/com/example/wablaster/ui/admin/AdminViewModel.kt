@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
+import com.example.wablaster.data.supabase.AppActivityLog
+
 data class AdminUiState(
     val users: List<AppUser> = emptyList(),
     val filteredUsers: List<AppUser> = emptyList(),
@@ -24,7 +26,12 @@ data class AdminUiState(
     val isMaintenanceActive: Boolean = false,
     val maintenanceMessage: String = "",
     val statusMessage: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val selectedPanelTab: Int = 0, // 0: Akun, 1: Log Aktivitas
+    val activityLogs: List<AppActivityLog> = emptyList(),
+    val filteredActivityLogs: List<AppActivityLog> = emptyList(),
+    val logFilterType: String = "ALL", // ALL, WA_BANNED, BROADCAST, LOGIN
+    val isLogsLoading: Boolean = false
 )
 
 @HiltViewModel
@@ -35,19 +42,28 @@ class AdminViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AdminUiState())
     val uiState: StateFlow<AdminUiState> = _uiState.asStateFlow()
 
+    private var activeCallerRole: UserRole = UserRole.AGENT
+
     init {
         loadData()
     }
 
-    fun loadData() {
+    fun loadData(callerRole: UserRole = activeCallerRole) {
+        activeCallerRole = callerRole
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            val usersRes = supabaseClient.getUsers()
+            val usersRes = supabaseClient.getUsers(activeCallerRole)
             val configRes = supabaseClient.checkMaintenanceMode()
 
             var usersList = _uiState.value.users
             usersRes.onSuccess { list ->
-                usersList = list
+                // Filter di ViewModel: Admin boleh melihat akun sesama ADMIN dan AGENT.
+                // Akun dan key IT Support 100% dirahasiakan dari Admin.
+                usersList = if (activeCallerRole == UserRole.ADMIN) {
+                    list.filter { it.role != UserRole.IT_SUPPORT }
+                } else {
+                    list
+                }
             }.onFailure { err ->
                 _uiState.update { it.copy(errorMessage = "Gagal memuat pengguna: ${err.message}") }
             }
@@ -86,6 +102,10 @@ class AdminViewModel @Inject constructor(
         val roleFilter = _uiState.value.filterRole
 
         val filtered = _uiState.value.users.filter { user ->
+            // Admin tidak boleh melihat akun IT Support sama sekali (IT Support 100% rahasia)
+            if (activeCallerRole == UserRole.ADMIN && user.role == UserRole.IT_SUPPORT) {
+                return@filter false
+            }
             val matchRole = (roleFilter == null || user.role == roleFilter)
             val matchQuery = q.isEmpty() ||
                     user.name.lowercase().contains(q) ||
@@ -190,6 +210,58 @@ class AdminViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(isLoading = false, errorMessage = err.message)
                 }
+            }
+        }
+    }
+
+    fun setPanelTab(tabIndex: Int, callerRole: UserRole) {
+        _uiState.update { it.copy(selectedPanelTab = tabIndex) }
+        if (tabIndex == 1) {
+            loadActivityLogs(callerRole)
+        }
+    }
+
+    fun loadActivityLogs(callerRole: UserRole) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLogsLoading = true) }
+            val res = supabaseClient.getActivityLogs(callerRole)
+            res.onSuccess { logs ->
+                _uiState.update { it.copy(isLogsLoading = false, activityLogs = logs) }
+                applyLogFilters()
+            }.onFailure { err ->
+                _uiState.update { it.copy(isLogsLoading = false, errorMessage = err.message) }
+            }
+        }
+    }
+
+    fun setLogFilterType(type: String) {
+        _uiState.update { it.copy(logFilterType = type) }
+        applyLogFilters()
+    }
+
+    private fun applyLogFilters() {
+        val state = _uiState.value
+        val filtered = when (state.logFilterType) {
+            "WA_BANNED" -> state.activityLogs.filter { it.activityType == "WA_BANNED" || it.status == "BANNED" }
+            "BROADCAST" -> state.activityLogs.filter { it.activityType.startsWith("BROADCAST") }
+            "LOGIN" -> state.activityLogs.filter { it.activityType == "LOGIN" || it.activityType == "LOGOUT" }
+            else -> state.activityLogs
+        }
+        _uiState.update { it.copy(filteredActivityLogs = filtered) }
+    }
+
+    fun resetWaStatus(user: AppUser, callerSerial: String, callerName: String, callerRole: UserRole) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val res = supabaseClient.resetWaStatus(user.serialNumber, callerSerial, callerName, callerRole)
+            res.onSuccess {
+                _uiState.update {
+                    it.copy(isLoading = false, statusMessage = "Status WhatsApp '${user.name}' berhasil di-reset ke NORMAL.")
+                }
+                loadData()
+                loadActivityLogs(callerRole)
+            }.onFailure { err ->
+                _uiState.update { it.copy(isLoading = false, errorMessage = err.message) }
             }
         }
     }

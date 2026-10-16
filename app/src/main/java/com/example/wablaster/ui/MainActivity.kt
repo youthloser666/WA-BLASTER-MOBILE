@@ -137,6 +137,7 @@ fun MainAppNavigation(
                 UserManagementScreen(
                     currentRole = authUiState.role,
                     currentUserSerial = authUiState.serialNumber,
+                    currentUserName = authUiState.name,
                     viewModel = adminViewModel,
                     onClose = { showUserManagement = false }
                 )

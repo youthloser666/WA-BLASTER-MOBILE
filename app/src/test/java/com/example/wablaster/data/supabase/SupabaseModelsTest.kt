@@ -102,4 +102,47 @@ class SupabaseModelsTest {
         assertTrue(isAllowedToAccessApp(UserRole.ADMIN, configNormal))
         assertTrue(isAllowedToAccessApp(UserRole.IT_SUPPORT, configNormal))
     }
+
+    @Test
+    fun testUserVisibility_adminCanSeeAdminAndAgent_butNeverItSupport() {
+        val userAgent = AppUser("1", "AGT-001", "Agent A", UserRole.AGENT)
+        val userAdmin1 = AppUser("2", "ADM-001", "Admin B", UserRole.ADMIN)
+        val userAdmin2 = AppUser("3", "ADM-002", "Admin C", UserRole.ADMIN)
+        val userItSupport = AppUser("4", "IT-001", "IT Support Master", UserRole.IT_SUPPORT)
+
+        val allUsers = listOf(userAgent, userAdmin1, userAdmin2, userItSupport)
+
+        // Filter for Admin caller:
+        val adminVisibleUsers = allUsers.filter { it.role != UserRole.IT_SUPPORT }
+        assertEquals(3, adminVisibleUsers.size)
+        assertTrue(adminVisibleUsers.any { it.role == UserRole.AGENT })
+        assertTrue(adminVisibleUsers.any { it.serialNumber == "ADM-001" })
+        assertTrue(adminVisibleUsers.any { it.serialNumber == "ADM-002" })
+        assertFalse("IT Support TIDAK BOLEH terlihat oleh Admin", adminVisibleUsers.any { it.role == UserRole.IT_SUPPORT })
+
+        // Filter for IT Support caller:
+        val itVisibleUsers = allUsers
+        assertEquals(4, itVisibleUsers.size)
+        assertTrue(itVisibleUsers.any { it.role == UserRole.IT_SUPPORT })
+    }
+
+    @Test
+    fun testLogVisibility_adminCanSeeAdminAndAgentLogs_butNeverItSupportLogs() {
+        val logAgent = AppActivityLog(id = "l1", serialNumber = "AGT-001", userName = "Agent A", userRole = UserRole.AGENT, activityType = "LOGIN", status = "INFO", description = "Login")
+        val logAdmin = AppActivityLog(id = "l2", serialNumber = "ADM-001", userName = "Admin B", userRole = UserRole.ADMIN, activityType = "USER_CREATE", status = "INFO", description = "Buat Agent")
+        val logIt = AppActivityLog(id = "l3", serialNumber = "IT-001", userName = "IT Master", userRole = UserRole.IT_SUPPORT, activityType = "MAINTENANCE_TOGGLE", status = "INFO", description = "Kunci Aplikasi")
+
+        val allLogs = listOf(logAgent, logAdmin, logIt)
+
+        // Filter for Admin caller:
+        val adminVisibleLogs = allLogs.filter { it.userRole != UserRole.IT_SUPPORT }
+        assertEquals(2, adminVisibleLogs.size)
+        assertTrue(adminVisibleLogs.any { it.userRole == UserRole.AGENT })
+        assertTrue(adminVisibleLogs.any { it.userRole == UserRole.ADMIN })
+        assertFalse("Log IT Support TIDAK BOLEH terlihat oleh Admin", adminVisibleLogs.any { it.userRole == UserRole.IT_SUPPORT })
+
+        // Filter for IT Support caller:
+        val itVisibleLogs = allLogs
+        assertEquals(3, itVisibleLogs.size)
+    }
 }

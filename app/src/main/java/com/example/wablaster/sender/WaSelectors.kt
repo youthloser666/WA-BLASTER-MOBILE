@@ -39,6 +39,20 @@ object WaSelectors {
         "not registered on WhatsApp"
     )
 
+    // Indikator pesan/dialog akun WhatsApp terblokir atau banned
+    val BANNED_ACCOUNT_TEXTS = listOf(
+        "tidak diizinkan menggunakan WhatsApp",
+        "not allowed to use WhatsApp",
+        "akun ini tidak diizinkan",
+        "account is not allowed",
+        "telah diblokir",
+        "akun diblokir",
+        "banned",
+        "temporarily banned",
+        "spam"
+    )
+
+
     // Teks tombol untuk menutup dialog kesalahan (dismiss dialog)
     val DISMISS_DIALOG_BUTTON_TEXTS = listOf(
         "OK",

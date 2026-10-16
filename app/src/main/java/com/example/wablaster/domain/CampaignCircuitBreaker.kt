@@ -25,6 +25,10 @@ class CampaignCircuitBreaker(
                 return false
             }
             is SendResult.Failed -> {
+                if (result.reason == FailReason.WA_BANNED) {
+                    consecutiveUiFailures = maxConsecutiveUiFailures
+                    return true
+                }
                 if (result.reason == FailReason.SEND_BUTTON_NOT_FOUND || result.reason == FailReason.TIMEOUT) {
                     consecutiveUiFailures++
                     return consecutiveUiFailures >= maxConsecutiveUiFailures

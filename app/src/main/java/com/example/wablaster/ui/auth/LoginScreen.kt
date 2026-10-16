@@ -209,7 +209,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Info Perangkat & Pengaturan Server Supabase
+            // Info Perangkat Saja
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
@@ -226,6 +226,7 @@ fun LoginScreen(
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "1 Serial Number Agent hanya dapat aktif pada 1 perangkat.",
                         style = MaterialTheme.typography.bodySmall,
@@ -233,26 +234,6 @@ fun LoginScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
                     )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    TextButton(
-                        onClick = { showServerConfigDialog = true },
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.CloudSync,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (uiState.isSupabaseConfigured) "Server Supabase: Terhubung" else "Konfigurasi Server Supabase",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
             }
         }

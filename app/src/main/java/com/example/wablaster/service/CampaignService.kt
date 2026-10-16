@@ -19,8 +19,11 @@ import com.example.wablaster.domain.RenderTemplate
 import com.example.wablaster.domain.CampaignCircuitBreaker
 import com.example.wablaster.sender.AccessibilitySender
 import com.example.wablaster.sender.IntentSender
+import com.example.wablaster.sender.FailReason
 import com.example.wablaster.sender.MessageSender
 import com.example.wablaster.sender.SendResult
+import com.example.wablaster.data.supabase.SupabaseClient
+import com.example.wablaster.data.supabase.UserRole
 import com.example.wablaster.ui.MainActivity
 import com.example.wablaster.util.DelayCalculator
 import com.example.wablaster.util.DelayConfig
@@ -81,6 +84,7 @@ class CampaignService : Service() {
     @Inject lateinit var campaignDao: CampaignDao
     @Inject lateinit var sendLogDao: SendLogDao
     @Inject lateinit var settingsDataStore: SettingsDataStore
+    @Inject lateinit var supabaseClient: SupabaseClient
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var executionJob: Job? = null
@@ -211,6 +215,25 @@ class CampaignService : Service() {
         val circuitBreaker = CampaignCircuitBreaker(maxConsecutiveUiFailures = 5)
         val startIndex = campaign.lastProcessedIndex
 
+        val currentSerial = settingsDataStore.userSessionSerialNumberFlow.firstOrNull() ?: "UNKNOWN"
+        val currentName = settingsDataStore.userSessionNameFlow.firstOrNull() ?: "Pengguna"
+        val currentRole = UserRole.fromString(settingsDataStore.userSessionRoleFlow.firstOrNull())
+        val currentDeviceId = settingsDataStore.getOrCreateDeviceId()
+
+        serviceScope.launch {
+            try {
+                supabaseClient.logActivity(
+                    serialNumber = currentSerial,
+                    userName = currentName,
+                    userRole = currentRole,
+                    activityType = "BROADCAST_START",
+                    status = "INFO",
+                    description = "Memulai broadcast '${campaign.title}' ke ${allContacts.size} kontak",
+                    deviceId = currentDeviceId
+                )
+            } catch (_: Exception) {}
+        }
+
         for (i in startIndex until allContacts.size) {
             if (!isActive || isStopped) break
 
@@ -296,6 +319,21 @@ class CampaignService : Service() {
                     failedCount++
                     val errorDetail = "${sendResult.reason}: ${sendResult.detail ?: "-"}"
                     recordLog(campaign.id, contact, chosenVariant.index, messageToSend, "FAILED", errorDetail)
+
+                    if (sendResult.reason == FailReason.WA_BANNED) {
+                        serviceScope.launch {
+                            try {
+                                supabaseClient.reportWaBanned(
+                                    serialNumber = currentSerial,
+                                    userName = currentName,
+                                    userRole = currentRole,
+                                    reason = sendResult.detail ?: "Terdeteksi dialog pemblokiran akun dari WhatsApp",
+                                    targetPhone = contact.phone,
+                                    deviceId = currentDeviceId
+                                )
+                            } catch (_: Exception) {}
+                        }
+                    }
                 }
             }
 
@@ -412,6 +450,25 @@ class CampaignService : Service() {
             errorMessage = if (status == "STOPPED" && summary.contains("otomatis")) summary else null,
             isServiceRunning = false
         )
+
+        serviceScope.launch {
+            try {
+                val currentSerial = settingsDataStore.userSessionSerialNumberFlow.firstOrNull() ?: "UNKNOWN"
+                val currentName = settingsDataStore.userSessionNameFlow.firstOrNull() ?: "Pengguna"
+                val currentRole = UserRole.fromString(settingsDataStore.userSessionRoleFlow.firstOrNull())
+                val currentDeviceId = settingsDataStore.getOrCreateDeviceId()
+
+                supabaseClient.logActivity(
+                    serialNumber = currentSerial,
+                    userName = currentName,
+                    userRole = currentRole,
+                    activityType = "BROADCAST_COMPLETED",
+                    status = if (status == "COMPLETED") "SUCCESS" else if (status == "STOPPED") "WARNING" else "INFO",
+                    description = "Broadcast '${campaign.title}' $status: $sent terkirim, $failed gagal, $skipped dilewati",
+                    deviceId = currentDeviceId
+                )
+            } catch (_: Exception) {}
+        }
 
         updateNotificationProgress("Selesai: $sent terkirim, $failed gagal", sent, campaign.totalContacts, true)
         stopForeground(STOP_FOREGROUND_DETACH)

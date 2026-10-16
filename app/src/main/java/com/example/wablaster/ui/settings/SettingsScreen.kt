@@ -249,7 +249,7 @@ fun SettingsScreen(
                             Icon(Icons.Default.SupervisorAccount, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (currentUserRole == UserRole.IT_SUPPORT) "Panel IT Support (Kunci & Kelola Akun)" else "Panel Admin (Kelola Akun Agent)",
+                                text = if (currentUserRole == UserRole.IT_SUPPORT) "Panel IT Support (Kunci & Kelola Akun)" else "Panel Manajemen Admin",
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.sp
                             )
