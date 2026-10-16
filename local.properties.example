@@ -1,0 +1,13 @@
+# ====================================================================
+# TEMPLATE KONFIGURASI LOKAL (local.properties)
+# ====================================================================
+# Salin file ini menjadi 'local.properties' di komputer Anda
+# dan isi dengan nilai yang sesuai.
+# File 'local.properties' asli TIDAK akan ter-push ke Git (diabaikan oleh .gitignore).
+
+# Path SDK Android di komputer Anda (contoh: Windows)
+sdk.dir=C\:\\Users\\Username\\AppData\\Local\\Android\\Sdk
+
+# Konfigurasi Supabase untuk Manajemen User & Maintenance Mode
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_publishable_anon_key_here

@@ -1,0 +1,38 @@
+# ====================================================================
+# Android & Gradle Build Artifacts
+# ====================================================================
+*.iml
+.gradle/
+.kotlin/
+/local.properties
+/.idea/
+.idea/
+.DS_Store
+/build/
+/app/build/
+captures/
+.externalNativeBuild
+.cxx/
+*.apk
+*.aab
+*.ap_
+
+# Keystores & Signing
+*.jks
+*.keystore
+
+# ====================================================================
+# Private Configuration & Secrets
+# ====================================================================
+local.properties
+.env
+.env.*
+secrets.properties
+
+# ====================================================================
+# Internal Documentation & AI Prompts (Private)
+# ====================================================================
+/docs/
+docs/
+AGENT_PROMPT.md
+REVISION_PROMPT.md

@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">WA Blaster</string>
+    <string name="accessibility_service_description">Layanan otomasi pengiriman pesan WhatsApp untuk WA Blaster.</string>
+</resources>
