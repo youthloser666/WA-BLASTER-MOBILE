@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import com.example.wablaster.util.PackageUtils
 import kotlinx.coroutines.delay
 
 /**
@@ -18,19 +19,20 @@ class IntentSender(
 ) : MessageSender {
 
     override suspend fun send(phone: String, message: String): SendResult {
-        if (!isPackageInstalled(context, targetPackage)) {
+        val realPackage = targetPackage.substringBefore(":")
+        if (!PackageUtils.isPackageInstalled(context, realPackage)) {
             return SendResult.Failed(
                 FailReason.WA_NOT_INSTALLED,
-                "Aplikasi WhatsApp ($targetPackage) tidak ditemukan di perangkat."
+                "Aplikasi WhatsApp ($realPackage) tidak ditemukan di perangkat."
             )
         }
 
         val encodedMessage = Uri.encode(message)
         val uri = Uri.parse("https://api.whatsapp.com/send?phone=$phone&text=$encodedMessage")
         val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-            setPackage(targetPackage)
+            setPackage(realPackage)
             if (!targetClass.isNullOrBlank()) {
-                setClassName(targetPackage, targetClass)
+                setClassName(realPackage, targetClass)
             }
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
@@ -46,11 +48,6 @@ class IntentSender(
     }
 
     private fun isPackageInstalled(context: Context, packageName: String): Boolean {
-        return try {
-            context.packageManager.getPackageInfo(packageName, 0)
-            true
-        } catch (e: PackageManager.NameNotFoundException) {
-            false
-        }
+        return PackageUtils.isPackageInstalled(context, packageName)
     }
 }

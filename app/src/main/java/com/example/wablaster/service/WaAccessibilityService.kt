@@ -58,7 +58,11 @@ class WaAccessibilityService : AccessibilityService() {
      * menemukan tombol kirim hanya di dalam chat, mengklik dengan jitter,
      * memverifikasi pengiriman secara ketat, lalu kembali.
      */
-    suspend fun executeSendFlow(targetPackage: String, timeoutMs: Long = 15000): SendResult {
+    suspend fun executeSendFlow(
+        targetPackage: String,
+        isClone: Boolean = false,
+        timeoutMs: Long = 15000
+    ): SendResult {
         val startTime = System.currentTimeMillis()
         var hasClickedOnce = false
 
@@ -73,6 +77,19 @@ class WaAccessibilityService : AccessibilityService() {
                 val currentPackage = root.packageName?.toString() ?: ""
                 val isWaPackage = currentPackage == targetPackage ||
                         currentPackage.startsWith("com.whatsapp")
+
+                // 1. Deteksi dan tangani otomatis dialog pemilihan aplikasi ganda (Disambiguation Dialog)
+                // Contoh Vivo: "Tindakan lengkap menggunakan: WhatsApp / II·WhatsApp"
+                val handledChooser = handleDisambiguationDialog(root, targetPackage = targetPackage, isClone = isClone)
+                if (handledChooser) {
+                    delay(800)
+                    continue
+                }
+
+                if (!isWaPackage) {
+                    delay(250)
+                    continue
+                }
 
                 if (isWaPackage) {
                     // 1. Deteksi dialog akun WA terblokir / BANNED
@@ -223,6 +240,119 @@ class WaAccessibilityService : AccessibilityService() {
             }
         }
         performGlobalAction(GLOBAL_ACTION_BACK)
+    }
+
+    /**
+     * Mendeteksi dan mengklik otomatis opsi WhatsApp pada dialog pemilihan aplikasi (System Disambiguation Dialog)
+     * seperti pada Vivo ("Tindakan lengkap menggunakan: WhatsApp / II·WhatsApp") atau Xiaomi Dual Apps.
+     */
+    private fun handleDisambiguationDialog(
+        root: AccessibilityNodeInfo,
+        targetPackage: String,
+        isClone: Boolean
+    ): Boolean {
+        val allNodes = mutableListOf<AccessibilityNodeInfo>()
+        collectAllNodes(root, allNodes)
+
+        // 1. Cek apakah ini dialog pemilihan aplikasi (Chooser / Disambiguation)
+        val chooserKeywords = listOf(
+            "tindakan lengkap menggunakan",
+            "selesaikan tindakan menggunakan",
+            "buka dengan",
+            "complete action using",
+            "open with",
+            "choose app",
+            "pilih aplikasi"
+        )
+        val isChooserTitlePresent = allNodes.any { node ->
+            val text = (node.text ?: node.contentDescription)?.toString() ?: ""
+            chooserKeywords.any { text.contains(it, ignoreCase = true) }
+        }
+
+        val currentPkg = root.packageName?.toString() ?: ""
+        val isResolverPackage = currentPkg == "android" ||
+                currentPkg.contains("intentresolver", ignoreCase = true) ||
+                currentPkg.contains("resolver", ignoreCase = true) ||
+                currentPkg.contains("securitycore", ignoreCase = true) ||
+                currentPkg.contains("upslide", ignoreCase = true)
+
+        val isBusinessTarget = targetPackage.contains("w4b", ignoreCase = true)
+
+        // Cari seluruh node yang bertuliskan WhatsApp atau WA Business
+        val waNodes = allNodes.filter { node ->
+            val t = (node.text ?: node.contentDescription)?.toString()?.lowercase() ?: ""
+            val matchesWa = t.contains("whatsapp") || t.contains("wa business")
+            if (!matchesWa) return@filter false
+
+            if (isBusinessTarget) {
+                t.contains("business") || t.contains("w4b")
+            } else {
+                !t.contains("business") && !t.contains("w4b")
+            }
+        }
+
+        if (waNodes.isEmpty() || (!isChooserTitlePresent && !isResolverPackage)) {
+            return false
+        }
+
+        // 2. Pilih target node berdasarkan pilihan Clone atau Utama
+        val cloneMarkers = listOf("ii·", "clone", "dual", "ganda", "kedua", "salinan", "\u00B7")
+        val targetNode: AccessibilityNodeInfo? = if (isClone) {
+            // Prioritas 1: Node bertanda clone
+            val explicitClone = waNodes.firstOrNull { node ->
+                val t = (node.text ?: node.contentDescription)?.toString()?.lowercase() ?: ""
+                cloneMarkers.any { t.contains(it) }
+            }
+            // Prioritas 2: Jika tidak bertanda eksplisit, ambil instance kedua
+            explicitClone ?: if (waNodes.size > 1) waNodes[1] else waNodes.firstOrNull()
+        } else {
+            // Prioritas 1: Node yang TIDAK bertanda clone
+            val explicitMain = waNodes.firstOrNull { node ->
+                val t = (node.text ?: node.contentDescription)?.toString()?.lowercase() ?: ""
+                cloneMarkers.none { t.contains(it) }
+            }
+            // Prioritas 2: Ambil instance pertama
+            explicitMain ?: waNodes.firstOrNull()
+        }
+
+        if (targetNode != null) {
+            val clicked = clickNodeOrParent(targetNode)
+            if (clicked) {
+                Log.d(TAG, "Berhasil mengklik target WhatsApp di chooser dialog (target=$targetPackage, isClone=$isClone)")
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private fun clickNodeOrParent(node: AccessibilityNodeInfo): Boolean {
+        // 1. Coba klik ke atas hierarki jika ada parent bertanda clickable
+        var current: AccessibilityNodeInfo? = node
+        while (current != null) {
+            if (current.isClickable) {
+                val success = current.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                if (success) return true
+            }
+            current = current.parent
+        }
+
+        // 2. Coba klik node itu sendiri secara langsung
+        if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            return true
+        }
+
+        // 3. Coba cari saudara (sibling) atau anak-anak dari parent yang clickable (misal tombol/icon di samping teks)
+        val parent = node.parent
+        if (parent != null) {
+            for (i in 0 until parent.childCount) {
+                val child = parent.getChild(i)
+                if (child != null && child.isClickable) {
+                    if (child.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+                }
+            }
+        }
+        return false
     }
 
     /**

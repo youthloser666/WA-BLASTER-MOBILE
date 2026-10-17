@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -316,37 +318,66 @@ fun CampaignScreen(
                     )
                 }
 
-                Row(
+                LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    for (app in apps) {
-                        val isSelected = targetPackage == app.packageName
+                    items(apps, key = { it.appId }) { app ->
+                        val isSelected = targetPackage == app.appId
                         Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { viewModel.onTargetPackageChanged(app.packageName) },
-                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                            onClick = { viewModel.onTargetPackageChanged(app.appId) },
+                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(8.dp),
-                            border = if (isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                            else null
+                            shape = RoundedCornerShape(10.dp),
+                            border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                            else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                         ) {
-                            Box(
-                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
-                                contentAlignment = Alignment.Center
+                            Row(
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
+                                if (app.isClone) {
+                                    Icon(
+                                        Icons.Default.ContentCopy,
+                                        contentDescription = null,
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                }
                                 Text(
                                     text = app.label,
                                     fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                 )
+                                if (isSelected) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = SuccessGreen.copy(alpha = 0.18f)
+                                    ) {
+                                        Text(
+                                            text = "Default",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = SuccessGreen,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Pilihan aplikasi otomatis disimpan sebagai default.",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                )
 
                 Spacer(modifier = Modifier.height(14.dp))
 

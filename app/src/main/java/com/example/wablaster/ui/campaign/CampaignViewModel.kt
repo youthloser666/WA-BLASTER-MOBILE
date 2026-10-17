@@ -109,6 +109,11 @@ class CampaignViewModel @Inject constructor(
 
     fun onTargetPackageChanged(pkg: String) {
         _targetPackage.value = pkg
+        viewModelScope.launch {
+            val appInfo = _installedWhatsAppApps.value.find { it.appId == pkg }
+            val label = appInfo?.label ?: if (pkg.endsWith(":clone")) "WhatsApp (Clone)" else "WhatsApp"
+            settingsDataStore.saveDefaultTargetWhatsApp(pkg, appInfo?.className, label)
+        }
     }
 
     fun onTitleChanged(newTitle: String) {

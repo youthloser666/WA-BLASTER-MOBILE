@@ -320,14 +320,14 @@ fun SettingsScreen(
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             installedWhatsAppApps.forEach { app ->
-                                val isSelected = (defaultTargetPackage == app.packageName)
+                                val isSelected = (defaultTargetPackage == app.appId)
 
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
                                             viewModel.setDefaultTargetWhatsApp(
-                                                pkg = app.packageName,
+                                                pkg = app.appId,
                                                 cls = app.activityClassName,
                                                 label = app.label
                                             )
@@ -351,7 +351,7 @@ fun SettingsScreen(
                                             selected = isSelected,
                                             onClick = {
                                                 viewModel.setDefaultTargetWhatsApp(
-                                                    pkg = app.packageName,
+                                                    pkg = app.appId,
                                                     cls = app.activityClassName,
                                                     label = app.label
                                                 )
